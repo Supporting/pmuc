@@ -22,7 +22,6 @@
 #include <ctime>
 
 #include <iostream>
-#include <cstdlib>
 
 #include "optionparser.h"
 #include "api/rvmparser.h"
@@ -71,7 +70,8 @@ enum optionIndex { UNKNOWN,
                    MINSIDES,
                    OBJECT,
                    COLOR,
-                   SCALE };
+                   SCALE,
+                   OFFSET};
 const option::Descriptor usage[] = {
     { UNKNOWN,      0, "",  "",              option::Arg::None,      "\nusage: pmuc [options] <rvm file 1> ...\n\nChoose at least one format and one file to convert.\nOptions:" },
     { HELP,         0, "h", "help",          option::Arg::None,      "  --help, -h \tPrint usage and exit." },
@@ -94,6 +94,7 @@ const option::Descriptor usage[] = {
     { OBJECT,       0, "",  "object",        option::Arg::Optional,  "  --object=<name> \tExtract only the named object." },
     { COLOR,        0, "",  "color",         option::Arg::Optional,  "  --color=<index> \tForce a PDMS color on all objects." },
     { SCALE,        0, "",  "scale",         option::Arg::Optional,  "  --scale=<multiplier> \tScale the model." },
+    { OFFSET,       0, "",  "offset",        option::Arg::Optional,  "  --offset=<xoffset>:<yoffset>:<zoffset> \tTranslate the model by offset" },
     {0,0,0,0,0,0}
 };
 const string formatnames[] = {
@@ -114,9 +115,11 @@ const string formatnames[] = {
 enum primitives { BOX, SNOUT, CYLINDER, SPHERE, CIRCULARTORUS, RECTANGULARTORUS, PYRAMID, LINE, ELLIPTICALDISH, SPHERICALDISH };
 const string primitiveNames[] = { "box", "snout", "cylinder", "sphere", "circulartorus", "rectangulartorus", "pyramid", "line", "ellipticaldish", "sphericaldish" };
 
+
+
 int main(int argc, char** argv)
 {
-    cout << "Plant Mock-Up Converter 0.1\nCopyright (C) EDF 2013" << endl;
+    cout << "Plant Mock-Up Converter 0.2\nCopyright (C) EDF 2015" << endl;
 
     argc -= (argc > 0); argv += (argc > 0);
     option::Stats stats(usage, argc, argv);
@@ -186,6 +189,20 @@ int main(int argc, char** argv)
     float scale = 1.;
     if (options[SCALE].count()) {
         scale = (float)atof(options[SCALE].arg);
+    }
+
+    Vector3F offset;
+    if (options[OFFSET].count()) {
+        std::string off(options[OFFSET].arg);
+        std::size_t first = off.find(':');
+        std::size_t second = off.find(':',first+1);
+        std::string xoff = off.substr(0,first);
+        std::string yoff = off.substr(first+1,second-first-1);
+        std::string zoff = off.substr(second+1);
+
+        offset[0] = atof(xoff.c_str());
+        offset[1] = atof(yoff.c_str());
+        offset[2] = atof(zoff.c_str());
     }
 
     string objectName = options[OBJECT].count() ? options[OBJECT].arg : "";
@@ -301,6 +318,7 @@ int main(int argc, char** argv)
     }
 
     // File conversions.
+	// TODO (MP) : The if and else options are too similar : some code factorisation should be done
     if (options[AGGREGATE].count() > 0) {
         for (int format = TEST + 1; format <= DUMMY; format++) {
             if (options[format].count() > 0) {
@@ -351,6 +369,7 @@ int main(int argc, char** argv)
                 if (scale != 1) {
                     parser.setScale(scale);
                 }
+                parser.setOffset(offset);
                 vector<string> files;
                 for (int file = 0; file < parse.nonOptionsCount(); file++) {
                     string filename = parse.nonOption(file);
@@ -434,6 +453,10 @@ int main(int argc, char** argv)
                     if (options[OBJECT].count() > 0) {
                         parser.setObjectName(options[OBJECT].arg);
                     }
+                    if (scale != 1) {
+                        parser.setScale(scale);
+                    }
+                    parser.setOffset(offset);
                     if (forcedColor != -1) {
                         parser.setForcedColor(forcedColor);
                     }

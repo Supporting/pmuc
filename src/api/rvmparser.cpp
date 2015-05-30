@@ -210,6 +210,7 @@ bool RVMParser::readStream(istream& is) {
         m_reader->startModel(projectName, name);
     }
 
+    m_offsetApplied.push_back(false);
     while ((id = readIdentifier(is)) != "END") {
         if (id == "CNTB") {
             if (!readGroup(is)) {
@@ -224,6 +225,7 @@ bool RVMParser::readStream(istream& is) {
             return false;
         }
     }
+    m_offsetApplied.pop_back();
 
     if (!m_aggregation) {
         m_reader->endModel();
@@ -247,6 +249,12 @@ const string RVMParser::lastError() {
     return m_lastError;
 }
 
+bool isOffsetNeeded( float translation, float offset ) {
+    float t=(translation>0?translation:-translation);
+    float o=(offset>0?offset:-offset);
+    return t>o/2;
+}
+
 bool RVMParser::readGroup(std::istream& is) {
     readInt(is); // Garbage ?
     readInt(is); // Garbage ?
@@ -263,6 +271,26 @@ bool RVMParser::readGroup(std::istream& is) {
     }
     if (m_objectFound) {
         m_nbGroups++;
+        
+        if ( m_offsetApplied.back() ) {
+            // Offset already applied
+            m_offsetApplied.push_back(true);
+        }else if(
+            isOffsetNeeded(translation[0],m_offset[0])
+            || isOffsetNeeded(translation[1],m_offset[1])
+            || isOffsetNeeded(translation[2],m_offset[2])
+        ) {
+            // Offset not applied yet and it should be
+            m_offsetApplied.push_back(true);
+        }else {
+            // Offset not applied yet and it shouldn't
+            m_offsetApplied.push_back(false);
+        }
+        if ( m_offsetApplied.back() ) {
+            translation[0]+=m_offset[0];
+            translation[1]+=m_offset[1];
+            translation[2]+=m_offset[2];
+        }
 
         m_reader->startGroup(name, translation, m_forcedColor != -1 ? m_forcedColor : materialId);
 
@@ -273,6 +301,7 @@ bool RVMParser::readGroup(std::istream& is) {
                 std::getline(*m_attributeStream, m_currentAttributeLine, '\n');
 #ifdef ICONV_FOUND
                 if (m_cd != (iconv_t)-1) {
+					// TODO (MP) : Remove magic numbers.
                     char buffer[1056];
                     size_t inb = m_currentAttributeLine.size();
                     size_t outb = 1056;
@@ -349,6 +378,7 @@ bool RVMParser::readGroup(std::istream& is) {
     if (m_objectFound) {
         m_reader->endGroup();
         m_objectFound--;
+        m_offsetApplied.pop_back();
     }
 
     return true;
@@ -360,6 +390,9 @@ bool RVMParser::readPrimitive(std::istream& is) {
     int version = readInt(is);
     int primitiveKind = readInt(is);
     vector<float> matrix = readMatrix(is);
+    matrix[ 9]+=m_offset[0];
+    matrix[10]+=m_offset[1];
+    matrix[11]+=m_offset[2];
     vector<float> boundingBox = readBoundingBox(is);
 
     if (m_objectFound) {
@@ -374,13 +407,13 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float xoffset = readFloat(is);
                 float yoffset = readFloat(is);
                 m_reader->startPyramid(matrix,
-                                       xbottom,
-                                       ybottom,
-                                       xtop,
-                                       ytop,
-                                       height,
-                                       xoffset,
-                                       yoffset);
+                                       xbottom * m_scale,
+                                       ybottom * m_scale,
+                                       xtop * m_scale,
+                                       ytop * m_scale,
+                                       height * m_scale,
+                                       xoffset * m_scale,
+                                       yoffset * m_scale);
                 m_reader->endPyramid();
             } break;
 
@@ -390,9 +423,9 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float ylength = readFloat(is);
                 float zlength = readFloat(is);
                 m_reader->startBox(matrix,
-                                   xlength,
-                                   ylength,
-                                   zlength);
+                                   xlength * m_scale,
+                                   ylength * m_scale,
+                                   zlength * m_scale);
                 m_reader->endBox();
             } break;
 
@@ -403,9 +436,9 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float height = readFloat(is);
                 float angle = readFloat(is);
                 m_reader->startRectangularTorus(matrix,
-                                                rinside,
-                                                routside,
-                                                height,
+                                                rinside * m_scale,
+                                                routside * m_scale,
+                                                height * m_scale,
                                                 angle);
                 m_reader->endRectangularTorus();
             } break;
@@ -416,8 +449,8 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float routside = readFloat(is);
                 float angle = readFloat(is);
                 m_reader->startCircularTorus(matrix,
-                                             rinside,
-                                             routside,
+                                             rinside * m_scale,
+                                             routside * m_scale,
                                              angle);
                 m_reader->endCircularTorus();
             } break;
@@ -427,8 +460,8 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float diameter = readFloat(is);
                 float radius = readFloat(is);
                 m_reader->startEllipticalDish(matrix,
-                                              diameter,
-                                              radius);
+                                              diameter * m_scale,
+                                              radius * m_scale);
                 m_reader->endEllipticalDish();
             } break;
 
@@ -437,8 +470,8 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float diameter = readFloat(is);
                 float height = readFloat(is);
                 m_reader->startSphericalDish(matrix,
-                                             diameter,
-                                             height);
+                                             diameter * m_scale,
+                                             height * m_scale);
                 m_reader->endSphericalDish();
             } break;
 
@@ -454,11 +487,12 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float unknown3 = readFloat(is);
                 float unknown4 = readFloat(is);
                 m_reader->startSnout(matrix,
-                                     dtop,
-                                     dbottom,
-                                     height,
-                                     xoffset,
-                                     yoffset,
+                                     dtop * m_scale,
+                                     dbottom * m_scale,
+                                     height * m_scale,
+                                     xoffset * m_scale,
+                                     yoffset * m_scale,
+									 // TODO (MP) : Pass "unknown" as parameter ? Really ???
                                      unknown1,
                                      unknown2,
                                      unknown3,
@@ -471,8 +505,8 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float radius = readFloat(is);
                 float height = readFloat(is);
                 m_reader->startCylinder(matrix,
-                                        radius,
-                                        height);
+                                        radius * m_scale,
+                                        height * m_scale);
                 m_reader->endCylinder();
             } break;
 
@@ -480,7 +514,7 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 m_nbSpheres++;
                 float diameter = readFloat(is);
                 m_reader->startSphere(matrix,
-                                      diameter);
+                                      diameter * m_scale);
                 m_reader->endSphere();
             } break;
 
@@ -489,12 +523,16 @@ bool RVMParser::readPrimitive(std::istream& is) {
                 float startx = readFloat(is);
                 float endx = readFloat(is);
                 m_reader->startLine(matrix,
-                                    startx,
-                                    endx);
+                                    startx * m_scale,
+                                    endx * m_scale);
                 m_reader->endLine();
             } break;
 
             case 11: {
+                // Facet groups have a special management
+                matrix[ 9]-=m_offset[0];
+                matrix[10]-=m_offset[1];
+                matrix[11]-=m_offset[2];
                 m_nbFacetGroups++;
                 m_reader->startFacetGroup(matrix,
                                           readFacetGroup(is));
@@ -691,13 +729,13 @@ std::vector<std::vector<std::vector<std::pair<Vector3F, Vector3F> > > > RVMParse
             std::vector<std::pair<Vector3F, Vector3F> > g;
             unsigned int vc = readInt(is);
             for (unsigned int i = 0; i < vc; i++) {
-                float x = readFloat(is) * m_scale;
-                float y = readFloat(is) * m_scale;
-                float z = readFloat(is) * m_scale;
+                float x = readFloat(is) * m_scale + m_offset[0];
+                float y = readFloat(is) * m_scale + m_offset[1];
+                float z = readFloat(is) * m_scale + m_offset[2];
                 Vector3F c(x, y, z);
-                x = readFloat(is) * m_scale;
-                y = readFloat(is) * m_scale;
-                z = readFloat(is) * m_scale;
+                x = readFloat(is);
+                y = readFloat(is);
+                z = readFloat(is);
                 Vector3F n(x, y, z);
 				pair<Vector3F, Vector3F> v(c, n);
                 g.push_back(v);

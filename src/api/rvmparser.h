@@ -93,6 +93,7 @@ class RVMParser
          */
         void setForcedColor(const int index) { m_forcedColor = index; }
         void setScale(const float scale) { m_scale = scale; }
+        void setOffset(const Vector3F& offset) { m_offset = offset; }
 
         /**
          * @brief In case of error, returns the last error that occured.
@@ -193,10 +194,12 @@ class RVMParser
         const char*     m_buffer;
         bool            m_headerFound;
         std::string     m_objectName;
-        int             m_objectFound;
+        int             m_objectFound; // TODO (MP) : Document the purpose of this attribute
         int             m_forcedColor;
         bool            m_aggregation;
         float           m_scale;
+        Vector3F        m_offset;
+        std::vector<bool> m_offsetApplied;
 
         int             m_nbGroups;
         int             m_nbPyramids;
