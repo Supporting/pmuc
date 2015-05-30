@@ -200,9 +200,9 @@ int main(int argc, char** argv)
         std::string yoff = off.substr(first+1,second-first-1);
         std::string zoff = off.substr(second+1);
 
-        offset[0] = atof(xoff.c_str());
-        offset[1] = atof(yoff.c_str());
-        offset[2] = atof(zoff.c_str());
+        offset[0] = (float)atof(xoff.c_str());
+        offset[1] = (float)atof(yoff.c_str());
+        offset[2] = (float)atof(zoff.c_str());
     }
 
     string objectName = options[OBJECT].count() ? options[OBJECT].arg : "";
