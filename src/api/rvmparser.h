@@ -174,7 +174,7 @@ class RVMParser
         std::string readString(std::istream& is);
         std::vector<float> readMatrix(std::istream& is);
         std::vector<float> readBoundingBox(std::istream& is);
-        std::vector<float> readVector(std::istream& is);
+        Vector3F readVector(std::istream& is);
         std::vector<std::vector<std::vector<std::pair<Vector3F, Vector3F> > > > readFacetGroup(std::istream& is);
         unsigned int readInt(std::istream& is);
         float readFloat(std::istream &is);
