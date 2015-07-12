@@ -88,7 +88,7 @@ class RVMReader
          * @param materialId the material to use in the form of a PDMS color index.
          * @see RVMColorHelper
          */
-        virtual void startGroup(const std::string& name, const std::vector<float>& translation, const int& materialId) = 0;
+        virtual void startGroup(const std::string& name, const Vector3F& translation, const int& materialId) = 0;
         /**
          * @brief Called at the end of a group.
          */

@@ -252,7 +252,10 @@ bool RVMParser::readGroup(std::istream& is) {
     readInt(is); // Garbage ?
     int version = readInt(is);
     string name = readString(is);
-    vector<float> translation = readVector(is);
+
+    Vector3F translation = readVector(is);
+    translation *= 0.001f;
+
     int materialId = readInt(is);
 
     if (m_objectName.empty() || m_objectFound || name == m_objectName) {
@@ -654,8 +657,7 @@ string RVMParser::readString(istream& is)
 vector<float> RVMParser::readMatrix(istream& is) {
     vector<float> res;
     for (int i = 0; i < 12; i++) {
-        // Why do we have to multiply by 1000. ?
-        res.push_back(readFloat(is) * 1000.f);
+        res.push_back(readFloat(is));
     }
     for (int i = 9; i < 12; i++) {
         res[i] *= m_scale;
@@ -671,10 +673,10 @@ vector<float> RVMParser::readBoundingBox(istream& is) {
     return res;
 }
 
-vector<float> RVMParser::readVector(istream& is) {
-    vector<float> res;
+Vector3F RVMParser::readVector(istream& is) {
+    Vector3F res;
     for (int i = 0; i < 3; i++) {
-        res.push_back(readFloat(is) * m_scale);
+        res[i] = readFloat(is) * m_scale;
     }
     return res;
 }

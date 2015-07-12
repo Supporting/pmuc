@@ -115,7 +115,7 @@ void X3DConverter::endModel() {
     // Forgot something ?
 }
 
-void X3DConverter::startGroup(const std::string& name, const std::vector<float>& translation, const int& materialId) {
+void X3DConverter::startGroup(const std::string& name, const Vector3F& translation, const int& materialId) {
     // Ensuring the name is compatible with the DEF attribute
     string x3dName = name;
     size_t p;
@@ -604,6 +604,7 @@ void X3DConverter::startShape(const std::vector<float>& matrix) {
                                  (matrix[10] - m_translations.back()[1]),
                                  (matrix[11] - m_translations.back()[2]));
     m_writers.back()->setMFRotation(ID::rotation, r);
+    m_writers.back()->setSFVec3f(ID::scale, scale.coeff(0,0),scale.coeff(1,1),scale.coeff(2,2));
     startNode(ID::Shape);
     startNode(ID::Appearance);
     startNode(ID::Material);

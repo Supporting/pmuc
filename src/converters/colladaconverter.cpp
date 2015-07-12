@@ -96,6 +96,7 @@ namespace colladaKeys {
 		ph,
 		h,
 		polygons,
+        unit,
 	};
 };
 
@@ -155,12 +156,13 @@ static String colladaKey[] = {
 	"ph",
 	"h",
 	"polygons",
+    "unit"
 };
 
 
 class CCGroup {
     public:
-        CCGroup(const std::string& name, const std::vector<float>& translation, const int& materialId) : m_name(name), m_translation(translation), m_material(materialId) {}
+        CCGroup(const std::string& name, const Vector3F& translation, const int& materialId) : m_name(name), m_translation(translation), m_material(materialId) {}
 
         void addGeometry(const string& name, const vector<float>& matrix) { m_geometries.push_back(pair<string, vector<float> >(name, matrix)); }
         CCGroup& addGroup(const CCGroup& group) { m_groups.push_back(group); return m_groups.back(); }
@@ -219,7 +221,7 @@ class CCGroup {
 
     private:
         string m_name;
-        vector<float> m_translation;
+        Vector3F m_translation;
         int m_material;
         vector<pair<string, vector<float> > > m_geometries;
         vector<CCGroup> m_groups;
@@ -271,7 +273,10 @@ void COLLADAConverter::startHeader(const string& banner, const string& fileNote,
     m_writer->appendTextElement(colladaKey[colladaKeys::author], user);
     m_writer->appendTextElement(colladaKey[colladaKeys::authoring_tool], banner);
     m_writer->appendTextElement(colladaKey[colladaKeys::comments], fileNote);
+    m_writer->closeElement();
     m_writer->appendTextElement(colladaKey[colladaKeys::up_axis], "Z_UP");
+    m_writer->openElement(colladaKey[colladaKeys::unit]);
+    m_writer->appendAttribute("meter", "1.0");
     m_writer->closeElement();
 }
 
@@ -341,11 +346,8 @@ void COLLADAConverter::endModel() {
     m_writer->closeElement(); // scene
 }
 
-void COLLADAConverter::startGroup(const std::string& name, const std::vector<float>& translation, const int& materialId) {
-    vector<float> t = translation;
-    t[0] -= m_translations.back()[0];
-    t[1] -= m_translations.back()[1];
-    t[2] -= m_translations.back()[2];
+void COLLADAConverter::startGroup(const std::string& name, const Vector3F& translation, const int& materialId) {
+    Vector3F t = translation - m_translations.back();
     CCGroup group(name, t, materialId);
     CCGroup* lastGroup = m_model->groupStack().back();
     m_model->groupStack().push_back(&lastGroup->addGroup(group));
